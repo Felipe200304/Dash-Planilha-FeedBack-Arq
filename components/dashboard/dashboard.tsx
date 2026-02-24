@@ -24,23 +24,28 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 function parseDate(dateStr: string | undefined): Date | null {
   if (!dateStr) return null
-  // DD/MM/YYYY
+
   if (dateStr.includes("/")) {
     const p = dateStr.split("/") 
     if (p.length === 3) {
       let year = Number(p[2])
-      // Handle 2-digit years
+      
       if (year < 100) year += 2000
       
       const date = new Date(year, Number(p[1]) - 1, Number(p[0]))
-      // Validar datas absurdas (ex: ano 1999 vindo de erros)
+      
       if (date.getFullYear() < 2020) return null
+      
+      
+      if (date > new Date(new Date().setMonth(new Date().getMonth() + 1))) return null; 
+      
       return date
     }
-  } 
-  // Maybe ISO
+  }  
+  
   const d = new Date(dateStr)
   if (d.getFullYear() < 2020) return null
+  if (d > new Date(new Date().setMonth(new Date().getMonth() + 1))) return null;
   return isNaN(d.getTime()) ? null : d
 }
 
@@ -68,12 +73,12 @@ export function Dashboard() {
       minute: "2-digit",
       second: "2-digit",
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [data])
 
   const rows = data?.rows ?? []
 
-  // Extract available months
+  
   const months = useMemo(() => {
     const m = new Set<string>()
     for (const row of rows) {
@@ -82,18 +87,16 @@ export function Dashboard() {
         m.add(format(d, "MMM/yyyy", { locale: ptBR }))
       }
     }
-    // Sort logic
-    // We can parse back or rely on string sort if format is sortable (MMM/yyyy is NOT sortable alphabetically)
-    // Let's create an array
+    
     return Array.from(m).sort((a, b) => {
-        // Parse "MMM/yyyy" back to date to compare
+        
         const da = parse(a, "MMM/yyyy", new Date(), { locale: ptBR })
         const db = parse(b, "MMM/yyyy", new Date(), { locale: ptBR })
-        return da.getTime() - db.getTime() // Ascending (Oldest to Newest)
+        return db.getTime() - da.getTime() 
     })
   }, [rows])
 
-  // Filter rows by selected Month
+  
   const filteredRows = useMemo(() => {
     if (selectedMonth === "all") return rows
     
@@ -101,12 +104,12 @@ export function Dashboard() {
         const d = parseDate(r.dataEvento || r.dataDisparo)
         if (!d) return false
         const m = format(d, "MMM/yyyy", { locale: ptBR })
-        // Use loose comparison to match capitalisation maybe? format usually returns lowercase "jan/2024" or capitalized based on locale but let's be safe
+        
         return m.toLowerCase() === selectedMonth.toLowerCase()
     })
   }, [rows, selectedMonth])
 
-  // Global stats for overview
+  
   const globalStats = useMemo(() => {
     const total = filteredRows.length
     const positivos = countSentiment(filteredRows, "positive")
@@ -132,7 +135,7 @@ export function Dashboard() {
     }
   }, [filteredRows])
 
-  // Per-franchise aggregated data
+  
   const franchiseMap = useMemo(() => {
     const map = new Map<
       string,
@@ -149,12 +152,12 @@ export function Dashboard() {
       }
     >()
 
-    // First, scan ALL rows to identify all possible franchises
-    // This ensures that even if a franchise has 0 feedback in the selected month, it still appears in the list
+    
+    
     for (const row of rows) {
           if (!row.franquia || !row.franquia.trim()) continue
           let fKey = row.franquia
-          // Normalize (same logic as below)
+          
           if (fKey === "Joinville") fKey = "JOI"
           if (fKey === "Mogi") fKey = "MGM"
           if (fKey === "Sorocaba") fKey = "SOD"
@@ -190,13 +193,13 @@ export function Dashboard() {
           }
     }
 
-    // Now process only FILTERED rows to add valid counts
+    
     for (const row of filteredRows) {
       if (!row.franquia || !row.franquia.trim()) continue
       
       let franchiseKey = row.franquia
       
-      // Normalize Names to Codes where possible to avoid duplicates
+      
       if (franchiseKey === "Joinville") franchiseKey = "JOI"
       if (franchiseKey === "Mogi") franchiseKey = "MGM"
       if (franchiseKey === "Sorocaba") franchiseKey = "SOD"
@@ -213,14 +216,14 @@ export function Dashboard() {
       if (franchiseKey === "Ribeirão Preto" || franchiseKey === "Ribeirao Preto") franchiseKey = "RBP"
       if (franchiseKey === "SJC" || franchiseKey === "São José dos Campos") franchiseKey = "SJC" 
 
-      // Separate "Lanche" franchises
-      if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCTL" // New code for SP Lanche
-      if (franchiseKey === "Campinas Lanche") franchiseKey = "VCPL" // New code for Campinas Lanche
+      
+      if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCTL" 
+      if (franchiseKey === "Campinas Lanche") franchiseKey = "VCPL" 
       
       if (franchiseKey === "Campinas") franchiseKey = "VCP"
 
       if (!map.has(franchiseKey)) {
-        // Should already exist from pre-scan, but just in case
+        
         map.set(franchiseKey, {
           code: franchiseKey,
           name: FRANCHISE_MAP[franchiseKey] || franchiseKey,
@@ -253,10 +256,10 @@ export function Dashboard() {
     }
 
     return map
-  }, [rows, filteredRows]) // Reset if rows or filter changes
+  }, [rows, filteredRows]) 
 
   const franchiseList = useMemo(() => {
-    // Return all franchises, but filteredRows only contributed to the counts of active ones
+    
     return Array.from(franchiseMap.values()).sort((a, b) => b.total - a.total)
   }, [franchiseMap])
 
@@ -310,7 +313,7 @@ export function Dashboard() {
       />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {/* Tabs */}
+        
         <div className="flex items-center gap-1 rounded-xl bg-secondary/60 p-1 w-fit">
           {tabs.map((tab) => (
             <button
@@ -328,7 +331,7 @@ export function Dashboard() {
           ))}
         </div>
 
-        {/* Month Filter */}
+        
         <div className="flex items-center gap-2">
           <Calendar className="size-4 text-muted-foreground" />
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
