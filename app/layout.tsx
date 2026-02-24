@@ -5,7 +5,6 @@ import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
   title: 'Dashboard de Feedbacks - Franquias',
   description: 'Acompanhamento em tempo real dos feedbacks de todas as franquias',

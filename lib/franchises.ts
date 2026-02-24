@@ -19,6 +19,8 @@ export const FRANCHISE_MAP: Record<string, string> = {
   SJC: "Sao Jose dos Campos",
   RBP: "Ribeirao Preto",
   RJB: "Rio de Janeiro Botafogo",
+  VCPL: "Campinas Lanche",
+  SCTL: "São Caetano Lanche",
   "São Paulo Lanche": "Lanche de São Paulo",
   "Campinas Lanche": "Lanche de Campinas",
 }

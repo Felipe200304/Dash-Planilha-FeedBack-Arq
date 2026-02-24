@@ -120,17 +120,18 @@ export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: 
     if (franchiseKey === "Guarulhos") franchiseKey = "GRU"
     if (franchiseKey === "São Caetano" || franchiseKey === "Sao Caetano") franchiseKey = "SCT"
     
-    // Merges
-    if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCT"
+    // Updates: Separate "Lanche" franchises
+    if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCTL" // Separate
+    if (franchiseKey === "Campinas Lanche") franchiseKey = "VCPL" // Separate
+
     if (franchiseKey === "Osasco") franchiseKey = "OSC"
     if (franchiseKey === "Rio de Janeiro") franchiseKey = "RJB"
     if (franchiseKey === "Jundiaí" || franchiseKey === "Jundiai") franchiseKey = "JDI"
     if (franchiseKey === "Limeira") franchiseKey = "QGB"
     if (franchiseKey === "Ribeirão Preto" || franchiseKey === "Ribeirao Preto") franchiseKey = "RBP"
     if (franchiseKey === "SJC" || franchiseKey === "São José dos Campos") franchiseKey = "SJC"
-    if (franchiseKey === "Campinas Lanche") franchiseKey = "Campinas"
-
-    if (selected === "all") return true
+    // if (franchiseKey === "Campinas Lanche") franchiseKey = "Campinas" // Removed merge
+    if (franchiseKey === "Campinas") franchiseKey = "VCP" // Kept normal Campinas mapping
     return franchiseKey === selected
   })
 
@@ -287,8 +288,10 @@ export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: 
                     verticalAlign="bottom"
                     iconType="circle"
                     iconSize={8}
-                    formatter={(value) => (
-                      <span style={{ color: "oklch(0.75 0.01 260)", fontSize: "12px" }}>{value}</span>
+                    formatter={(value, entry: any) => (
+                      <span style={{ color: "oklch(0.75 0.01 260)", fontSize: "12px" }}>
+                        {value} <span style={{ color: "oklch(0.55 0.01 260)", marginLeft: "4px" }}>({entry.payload.value})</span>
+                      </span>
                     )}
                   />
                 </PieChart>

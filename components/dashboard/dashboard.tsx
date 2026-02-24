@@ -9,9 +9,40 @@ import { OverviewTab } from "./overview-tab"
 import { FranchisePage } from "./franchise-page"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent } from "@/components/ui/card"
-import { AlertCircle, LayoutDashboard, Building2 } from "lucide-react"
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue, 
+} from "@/components/ui/select"
+import { AlertCircle, LayoutDashboard, Building2, Calendar } from "lucide-react"
+import { format, parse, isValid } from "date-fns"
+import { ptBR } from "date-fns/locale"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
+function parseDate(dateStr: string | undefined): Date | null {
+  if (!dateStr) return null
+  // DD/MM/YYYY
+  if (dateStr.includes("/")) {
+    const p = dateStr.split("/") 
+    if (p.length === 3) {
+      let year = Number(p[2])
+      // Handle 2-digit years
+      if (year < 100) year += 2000
+      
+      const date = new Date(year, Number(p[1]) - 1, Number(p[0]))
+      // Validar datas absurdas (ex: ano 1999 vindo de erros)
+      if (date.getFullYear() < 2020) return null
+      return date
+    }
+  } 
+  // Maybe ISO
+  const d = new Date(dateStr)
+  if (d.getFullYear() < 2020) return null
+  return isNaN(d.getTime()) ? null : d
+}
 
 function countSentiment(rows: FeedbackRow[], s: Sentiment) {
   return rows.filter((r) => r.sentiment === s).length
@@ -20,6 +51,7 @@ function countSentiment(rows: FeedbackRow[], s: Sentiment) {
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<"overview" | "franchise">("overview")
   const [selectedFranchise, setSelectedFranchise] = useState("all")
+  const [selectedMonth, setSelectedMonth] = useState<string>("all")
 
   const { data, error, isLoading, mutate, isValidating } = useSWR<{
     rows: FeedbackRow[]
@@ -41,16 +73,49 @@ export function Dashboard() {
 
   const rows = data?.rows ?? []
 
+  // Extract available months
+  const months = useMemo(() => {
+    const m = new Set<string>()
+    for (const row of rows) {
+      const d = parseDate(row.dataEvento || row.dataDisparo)
+      if (d) {
+        m.add(format(d, "MMM/yyyy", { locale: ptBR }))
+      }
+    }
+    // Sort logic
+    // We can parse back or rely on string sort if format is sortable (MMM/yyyy is NOT sortable alphabetically)
+    // Let's create an array
+    return Array.from(m).sort((a, b) => {
+        // Parse "MMM/yyyy" back to date to compare
+        const da = parse(a, "MMM/yyyy", new Date(), { locale: ptBR })
+        const db = parse(b, "MMM/yyyy", new Date(), { locale: ptBR })
+        return da.getTime() - db.getTime() // Ascending (Oldest to Newest)
+    })
+  }, [rows])
+
+  // Filter rows by selected Month
+  const filteredRows = useMemo(() => {
+    if (selectedMonth === "all") return rows
+    
+    return rows.filter((r) => {
+        const d = parseDate(r.dataEvento || r.dataDisparo)
+        if (!d) return false
+        const m = format(d, "MMM/yyyy", { locale: ptBR })
+        // Use loose comparison to match capitalisation maybe? format usually returns lowercase "jan/2024" or capitalized based on locale but let's be safe
+        return m.toLowerCase() === selectedMonth.toLowerCase()
+    })
+  }, [rows, selectedMonth])
+
   // Global stats for overview
   const globalStats = useMemo(() => {
-    const total = rows.length
-    const positivos = countSentiment(rows, "positive")
-    const negativos = countSentiment(rows, "negative")
-    const neutros = countSentiment(rows, "neutral")
-    const semResposta = rows.filter((r) => r.sentiment === null).length
+    const total = filteredRows.length
+    const positivos = countSentiment(filteredRows, "positive")
+    const negativos = countSentiment(filteredRows, "negative")
+    const neutros = countSentiment(filteredRows, "neutral")
+    const semResposta = filteredRows.filter((r) => r.sentiment === null).length
     const respondidos = positivos + negativos + neutros
-    const enviados = rows.filter((r) => r.isEnviado).length
-    const franquias = new Set(rows.map((r) => r.franquia)).size
+    const enviados = filteredRows.filter((r) => r.isEnviado).length
+    const franquias = new Set(filteredRows.map((r) => r.franquia)).size
 
     return {
       total,
@@ -65,7 +130,7 @@ export function Dashboard() {
       negativePercent: respondidos > 0 ? (negativos / respondidos) * 100 : 0,
       neutralPercent: respondidos > 0 ? (neutros / respondidos) * 100 : 0,
     }
-  }, [rows])
+  }, [filteredRows])
 
   // Per-franchise aggregated data
   const franchiseMap = useMemo(() => {
@@ -84,7 +149,49 @@ export function Dashboard() {
       }
     >()
 
+    // First, scan ALL rows to identify all possible franchises
+    // This ensures that even if a franchise has 0 feedback in the selected month, it still appears in the list
     for (const row of rows) {
+          if (!row.franquia || !row.franquia.trim()) continue
+          let fKey = row.franquia
+          // Normalize (same logic as below)
+          if (fKey === "Joinville") fKey = "JOI"
+          if (fKey === "Mogi") fKey = "MGM"
+          if (fKey === "Sorocaba") fKey = "SOD"
+          if (fKey === "Itu") fKey = "ITU"
+          if (fKey === "Pouso Alegre") fKey = "MPA"
+          if (fKey === "Santos") fKey = "STA"
+          if (fKey === "Uberlândia" || fKey === "Uberlandia") fKey = "UID"
+          if (fKey === "Guarulhos") fKey = "GRU"
+          if (fKey === "São Caetano" || fKey === "Sao Caetano") fKey = "SCT"
+          if (fKey === "Osasco") fKey = "OSC"
+          if (fKey === "Rio de Janeiro") fKey = "RJB"
+          if (fKey === "Jundiaí" || fKey === "Jundiai") fKey = "JDI"
+          if (fKey === "Limeira") fKey = "QGB"
+          if (fKey === "Ribeirão Preto" || fKey === "Ribeirao Preto") fKey = "RBP"
+          if (fKey === "SJC" || fKey === "São José dos Campos") fKey = "SJC" 
+          
+          if (fKey === "São Paulo Lanche") fKey = "SCTL"
+          if (fKey === "Campinas Lanche") fKey = "VCPL"
+          if (fKey === "Campinas") fKey = "VCP"
+
+          if (!map.has(fKey)) {
+            map.set(fKey, {
+              code: fKey,
+              name: FRANCHISE_MAP[fKey] || fKey,
+              total: 0,
+              positivos: 0,
+              negativos: 0,
+              neutros: 0,
+              semResposta: 0,
+              enviados: 0,
+              eventos: {},
+            })
+          }
+    }
+
+    // Now process only FILTERED rows to add valid counts
+    for (const row of filteredRows) {
       if (!row.franquia || !row.franquia.trim()) continue
       
       let franchiseKey = row.franquia
@@ -106,13 +213,14 @@ export function Dashboard() {
       if (franchiseKey === "Ribeirão Preto" || franchiseKey === "Ribeirao Preto") franchiseKey = "RBP"
       if (franchiseKey === "SJC" || franchiseKey === "São José dos Campos") franchiseKey = "SJC" 
 
-      if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCT" // Merge São Paulo Lanche into São Caetano
+      // Separate "Lanche" franchises
+      if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCTL" // New code for SP Lanche
+      if (franchiseKey === "Campinas Lanche") franchiseKey = "VCPL" // New code for Campinas Lanche
       
-      // Merge "Campinas Lanche" into "Campinas"
-      if (franchiseKey === "Campinas Lanche") franchiseKey = "VCP" 
       if (franchiseKey === "Campinas") franchiseKey = "VCP"
 
       if (!map.has(franchiseKey)) {
+        // Should already exist from pre-scan, but just in case
         map.set(franchiseKey, {
           code: franchiseKey,
           name: FRANCHISE_MAP[franchiseKey] || franchiseKey,
@@ -145,9 +253,10 @@ export function Dashboard() {
     }
 
     return map
-  }, [rows])
+  }, [rows, filteredRows]) // Reset if rows or filter changes
 
   const franchiseList = useMemo(() => {
+    // Return all franchises, but filteredRows only contributed to the counts of active ones
     return Array.from(franchiseMap.values()).sort((a, b) => b.total - a.total)
   }, [franchiseMap])
 
@@ -200,22 +309,42 @@ export function Dashboard() {
         lastUpdated={lastUpdated}
       />
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 rounded-xl bg-secondary/60 p-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all ${
-              activeTab === tab.id
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <tab.icon className="size-4" />
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Tabs */}
+        <div className="flex items-center gap-1 rounded-xl bg-secondary/60 p-1 w-fit">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all ${
+                activeTab === tab.id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <tab.icon className="size-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Month Filter */}
+        <div className="flex items-center gap-2">
+          <Calendar className="size-4 text-muted-foreground" />
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[180px] bg-secondary border-border h-10">
+              <SelectValue placeholder="Selecione o mês" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todo o período</SelectItem>
+              {months.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {activeTab === "overview" ? (
@@ -228,7 +357,7 @@ export function Dashboard() {
           franchiseList={franchiseList}
           selected={selectedFranchise}
           onSelect={setSelectedFranchise}
-          rows={rows}
+          rows={filteredRows}
         />
       )}
     </div>

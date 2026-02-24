@@ -211,8 +211,10 @@ export function OverviewTab({ stats, franchiseList }: Props) {
                     verticalAlign="bottom"
                     iconType="circle"
                     iconSize={8}
-                    formatter={(value) => (
-                      <span style={{ color: "oklch(0.75 0.01 260)", fontSize: "12px" }}>{value}</span>
+                    formatter={(value, entry: any) => (
+                      <span style={{ color: "oklch(0.75 0.01 260)", fontSize: "12px" }}>
+                         {value} <span style={{ color: "oklch(0.55 0.01 260)", marginLeft: "4px" }}>({entry.payload.value})</span>
+                      </span>
                     )}
                   />
                 </PieChart>
