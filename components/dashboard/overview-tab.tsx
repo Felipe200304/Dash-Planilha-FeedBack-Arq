@@ -9,6 +9,7 @@ import {
   Send,
   Building2,
   TrendingUp,
+  AlertTriangle,
 } from "lucide-react"
 import {
   BarChart,
@@ -65,15 +66,46 @@ type Props = {
   franchiseList: FranchiseRow[]
 }
 
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  color,
+  bg,
+}: {
+  icon: any
+  label: string
+  value: number
+  sub?: string
+  color: string
+  bg: string
+}) {
+  return (
+    <Card className="gap-0 py-0">
+      <CardContent className="flex flex-col items-center gap-1 p-4 text-center">
+        <div className={`flex size-9 items-center justify-center rounded-lg ${bg}`}>
+          <Icon className={`size-4 ${color}`} />
+        </div>
+        <span className={`text-2xl font-bold tabular-nums ${color}`}>
+          {value.toLocaleString("pt-BR")}
+        </span>
+        <span className="text-[10px] text-muted-foreground">{label}</span>
+        {sub && <span className="text-[10px] font-medium text-muted-foreground">{sub}</span>}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function OverviewTab({ stats, franchiseList }: Props) {
-  const kpis = [
-    { title: "Total Feedbacks", value: stats.total, icon: MessageSquare, color: "text-chart-3", bg: "bg-chart-3/10" },
-    { title: "Positivos", value: stats.positivos, sub: `${stats.positivePercent.toFixed(1)}%`, icon: ThumbsUp, color: "text-primary", bg: "bg-primary/10" },
-    { title: "Negativos", value: stats.negativos, sub: `${stats.negativePercent.toFixed(1)}%`, icon: ThumbsDown, color: "text-destructive", bg: "bg-destructive/10" },
-    { title: "Neutros", value: stats.neutros, sub: `${stats.neutralPercent.toFixed(1)}%`, icon: MinusCircle, color: "text-chart-4", bg: "bg-chart-4/10" },
-    { title: "Enviados", value: stats.enviados, sub: `${stats.total > 0 ? ((stats.enviados / stats.total) * 100).toFixed(1) : 0}%`, icon: Send, color: "text-chart-3", bg: "bg-chart-3/10" },
-    { title: "Franquias", value: stats.franquias, icon: Building2, color: "text-chart-5", bg: "bg-chart-5/10" },
-  ]
+  // Calculate rates matching the franchise page logic
+  const respondidos = stats.positivos + stats.negativos + stats.neutros
+  const taxaPositiva = respondidos > 0 ? (stats.positivos / respondidos) * 100 : 0
+  const taxaNegativa = respondidos > 0 ? (stats.negativos / respondidos) * 100 : 0
+  const taxaNeutra = respondidos > 0 ? (stats.neutros / respondidos) * 100 : 0
+  const taxaEnvio = stats.total > 0 ? (stats.enviados / stats.total) * 100 : 0
+  const taxaResposta = stats.total > 0 ? (respondidos / stats.total) * 100 : 0
 
   // Pie chart data
   const sentimentData = [
@@ -106,24 +138,15 @@ export function OverviewTab({ stats, franchiseList }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        {kpis.map((k) => (
-          <Card key={k.title} className="gap-0 py-0">
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${k.bg}`}>
-                <k.icon className={`size-5 ${k.color}`} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[11px] text-muted-foreground">{k.title}</span>
-                <span className={`text-xl font-bold tabular-nums ${k.color}`}>
-                  {k.value.toLocaleString("pt-BR")}
-                </span>
-                {k.sub && <span className="text-[10px] text-muted-foreground">{k.sub} dos respondidos</span>}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+        <MetricCard icon={MessageSquare} label="Total" value={stats.total} color="text-chart-3" bg="bg-chart-3/10" />
+        <MetricCard icon={Send} label="Enviados" value={stats.enviados} sub={`${taxaEnvio.toFixed(0)}%`} color="text-chart-3" bg="bg-chart-3/10" />
+        <MetricCard icon={TrendingUp} label="Respondidos" value={respondidos} sub={`${taxaResposta.toFixed(0)}%`} color="text-foreground" bg="bg-secondary" />
+        <MetricCard icon={ThumbsUp} label="Positivos" value={stats.positivos} sub={`${taxaPositiva.toFixed(1)}%`} color="text-primary" bg="bg-primary/10" />
+        <MetricCard icon={ThumbsDown} label="Negativos" value={stats.negativos} sub={`${taxaNegativa.toFixed(1)}%`} color="text-destructive" bg="bg-destructive/10" />
+        <MetricCard icon={MinusCircle} label="Neutros" value={stats.neutros} sub={`${taxaNeutra.toFixed(1)}%`} color="text-chart-4" bg="bg-chart-4/10" />
+        <MetricCard icon={AlertTriangle} label="Sem Resposta" value={stats.semResposta} color="text-muted-foreground" bg="bg-muted" />
       </div>
 
       {/* Charts row */}
