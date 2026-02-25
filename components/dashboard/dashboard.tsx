@@ -354,6 +354,7 @@ export function Dashboard() {
         <OverviewTab
           stats={globalStats}
           franchiseList={franchiseList}
+          rows={filteredRows}
         />
       ) : (
         <FranchisePage

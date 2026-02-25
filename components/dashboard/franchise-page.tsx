@@ -1,7 +1,17 @@
 "use client"
 
 // Test commit: Verifying GitHub connection
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -19,6 +29,8 @@ import {
   AlertTriangle,
   PartyPopper,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import {
   PieChart,
@@ -38,6 +50,9 @@ import {
 import { format, parse, isValid } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import type { FeedbackRow } from "@/lib/franchises"
+import { formatPhoneNumber } from "@/lib/utils"
+// force refresh
+import { ResolutionCell } from "@/components/dashboard/resolution-cell"
 
 const TT = {
   contentStyle: {
@@ -70,6 +85,9 @@ type Props = {
 }
 
 export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: Props) {
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
   // If "all", compute aggregated, otherwise find the specific franchise
   const current =
     selected === "all"
@@ -135,9 +153,18 @@ export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: 
     return franchiseKey === selected
   })
 
+  // Pagination Logic
+  const negativeRows = relevantRows.filter((r) => r.sentiment === "negative")
+  const totalPages = Math.ceil(negativeRows.length / itemsPerPage)
+  
+  const currentNegativeRows = negativeRows.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   // 2. Group by Month (using dataDisparo or dataEvento)
   const trendMap = new Map<string, { total: number; positive: number; sortKey: number }>()
-
+  
   for (const row of relevantRows) {
     if (row.sentiment === null) continue; // Only count respondents for positivity trend? Or all? Usually respondents.
     
@@ -186,8 +213,6 @@ export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: 
   }))
 
   // Approval label
-
-
   const approvalLabel =
     taxaPositiva >= 70 ? "Excelente" : taxaPositiva >= 50 ? "Bom" : taxaPositiva >= 30 ? "Regular" : "Baixo"
   const approvalColor =
@@ -379,6 +404,75 @@ export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: 
              </div>
           </CardContent>
         </Card>
+
+      {/* Negative Feedbacks Table */}
+      <Card>
+        <div className="px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <ThumbsDown className="size-5 text-destructive" />
+            <h3 className="text-base font-semibold">Feedbacks Negativos</h3>
+          </div>
+        </div>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[150px]">Franquia</TableHead>
+                <TableHead className="w-[150px]">Evento</TableHead>
+                <TableHead>Nome Cliente</TableHead>
+                <TableHead className="w-[120px]">Data Evento</TableHead>
+                <TableHead className="w-[140px]">Whatsapp</TableHead>
+                <TableHead className="w-[200px]">Resolução</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentNegativeRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    Nenhum feedback negativo encontrado para esta franquia.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentNegativeRows.map((row, index) => (
+                  <TableRow key={index} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">{row.franquiaNome || row.franquia}</TableCell>
+                    <TableCell>{row.evento || "-"}</TableCell>
+                    <TableCell>{row.nomeCliente}</TableCell>
+                    <TableCell>{row.dataEvento}</TableCell>
+                    <TableCell className="font-mono text-xs">{formatPhoneNumber(row.whatsapp)}</TableCell>
+                    <TableCell><ResolutionCell row={row} /></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-end space-x-2 p-4 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </Button>
+            <div className="text-sm font-medium">
+              Página {currentPage} de {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Próximo
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

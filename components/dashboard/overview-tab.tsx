@@ -1,6 +1,19 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { formatPhoneNumber } from "@/lib/utils"
+import type { FeedbackRow } from "@/lib/franchises"
 import {
   MessageSquare,
   ThumbsUp,
@@ -10,6 +23,8 @@ import {
   Building2,
   TrendingUp,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import {
   BarChart,
@@ -24,6 +39,8 @@ import {
   Pie,
   Legend,
 } from "recharts"
+// force refresh
+import { ResolutionCell } from "@/components/dashboard/resolution-cell"
 
 const TT = {
   contentStyle: {
@@ -64,6 +81,7 @@ type FranchiseRow = {
 type Props = {
   stats: Stats
   franchiseList: FranchiseRow[]
+  rows: FeedbackRow[]
 }
 
 
@@ -98,13 +116,25 @@ function MetricCard({
   )
 }
 
-export function OverviewTab({ stats, franchiseList }: Props) {
+export function OverviewTab({ stats, franchiseList, rows = [] }: Props) {
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+  
+  const negativeRows = rows.filter((r) => r.sentiment === "negative")
+
   // Calculate rates matching the franchise page logic
   const respondidos = stats.positivos + stats.negativos + stats.neutros
   const taxaPositiva = respondidos > 0 ? (stats.positivos / respondidos) * 100 : 0
   const taxaNegativa = respondidos > 0 ? (stats.negativos / respondidos) * 100 : 0
   const taxaNeutra = respondidos > 0 ? (stats.neutros / respondidos) * 100 : 0
   const taxaEnvio = stats.total > 0 ? (stats.enviados / stats.total) * 100 : 0
+  
+  const totalPages = Math.ceil(negativeRows.length / itemsPerPage)
+  
+  const currentNegativeRows = negativeRows.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
   const taxaResposta = stats.total > 0 ? (respondidos / stats.total) * 100 : 0
 
   // Pie chart data
@@ -293,6 +323,75 @@ export function OverviewTab({ stats, franchiseList }: Props) {
             })}
           </div>
         </CardContent>
+      </Card>
+
+      {/* Negative Feedbacks Table */}
+      <Card>
+        <CardHeader className="px-5 py-4">
+          <div className="flex items-center gap-2">
+            <ThumbsDown className="size-5 text-destructive" />
+            <CardTitle className="text-base font-semibold">Feedbacks Negativos (Todos)</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[150px]">Franquia</TableHead>
+                <TableHead className="w-[150px]">Evento</TableHead>
+                <TableHead>Nome Cliente</TableHead>
+                <TableHead className="w-[120px]">Data Evento</TableHead>
+                <TableHead className="w-[140px]">Whatsapp</TableHead>
+                <TableHead className="w-[200px]">Resolução</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentNegativeRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    Nenhum feedback negativo encontrado para o período selecionado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentNegativeRows.map((row, index) => (
+                  <TableRow key={index} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">{row.franquiaNome || row.franquia}</TableCell>
+                    <TableCell>{row.evento || "-"}</TableCell>
+                    <TableCell>{row.nomeCliente}</TableCell>
+                    <TableCell>{row.dataEvento}</TableCell>
+                    <TableCell className="font-mono text-xs">{formatPhoneNumber(row.whatsapp)}</TableCell>
+                    <TableCell><ResolutionCell row={row} /></TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-end space-x-2 p-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </Button>
+            <div className="text-sm font-medium">
+              Página {currentPage} de {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Próximo
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   )
