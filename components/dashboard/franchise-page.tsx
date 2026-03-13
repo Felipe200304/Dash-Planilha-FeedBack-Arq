@@ -140,7 +140,7 @@ export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: 
     
     // Updates: Separate "Lanche" franchises
     if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCTL" // Separate
-    if (franchiseKey === "Campinas Lanche") franchiseKey = "VCPL" // Separate
+    if (franchiseKey === "Campinas Lanche") franchiseKey = "VCPL"
 
     if (franchiseKey === "Osasco") franchiseKey = "OSC"
     if (franchiseKey === "Rio de Janeiro") franchiseKey = "RJB"
@@ -148,8 +148,7 @@ export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: 
     if (franchiseKey === "Limeira") franchiseKey = "QGB"
     if (franchiseKey === "Ribeirão Preto" || franchiseKey === "Ribeirao Preto") franchiseKey = "RBP"
     if (franchiseKey === "SJC" || franchiseKey === "São José dos Campos") franchiseKey = "SJC"
-    // if (franchiseKey === "Campinas Lanche") franchiseKey = "Campinas" // Removed merge
-    if (franchiseKey === "Campinas") franchiseKey = "VCP" // Kept normal Campinas mapping
+    if (franchiseKey === "Campinas") franchiseKey = "VCP"
     return franchiseKey === selected
   })
 

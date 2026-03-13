@@ -21,8 +21,6 @@ export const FRANCHISE_MAP: Record<string, string> = {
   RJB: "Rio de Janeiro Botafogo",
   VCPL: "Campinas Lanche",
   SCTL: "São Caetano Lanche",
-  "São Paulo Lanche": "Lanche de São Paulo",
-  "Campinas Lanche": "Lanche de Campinas",
 }
 
 export type Sentiment = "positive" | "negative" | "neutral" | null
