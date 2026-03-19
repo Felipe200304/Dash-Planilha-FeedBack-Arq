@@ -17,7 +17,7 @@ import type { FeedbackRow } from "@/lib/franchises"
 type ResolutionStatus = "unresolved" | "in_progress" | "resolved"
 
 function generateKey(row: FeedbackRow) {
-  return `resolution_${row.franquia}_${row.dataEvento}_${row.whatsapp}_${row.nomeCliente}`.replace(/\s+/g, '')
+  return `resolution_${row.franquia}_${row.dataEvento}_${row.whatsapp}_${row.nomeCliente}_${row.evento}_${row.dataDisparo}_${row.horaDisparo}`.replace(/\s+/g, '')
 }
 
 function getStatus(text: string, resolved: boolean): ResolutionStatus {
@@ -59,8 +59,8 @@ export function ResolutionCell({ row }: { row: FeedbackRow }) {
   useEffect(() => {
     const saved = localStorage.getItem(storageKey)
     const savedStatus = localStorage.getItem(statusKey)
-    if (saved) setValue(saved)
-    if (savedStatus === "resolved") setIsResolved(true)
+    setValue(saved || "")
+    setIsResolved(savedStatus === "resolved")
     setLoading(false)
   }, [storageKey, statusKey])
 
