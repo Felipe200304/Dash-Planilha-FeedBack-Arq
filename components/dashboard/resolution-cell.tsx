@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,24 +11,29 @@ import {
   DialogTrigger,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { FileText, Pencil, Flag, CheckCircle2, Clock } from "lucide-react"
+import { Flag, CheckCircle2, Clock, LoaderCircle } from "lucide-react"
 import type { FeedbackRow } from "@/lib/franchises"
 
 type ResolutionStatus = "unresolved" | "in_progress" | "resolved"
 
-function generateKey(row: FeedbackRow) {
-  return `resolution_${row.franquia}_${row.dataEvento}_${row.whatsapp}_${row.nomeCliente}_${row.evento}_${row.dataDisparo}_${row.horaDisparo}`.replace(/\s+/g, '')
-}
+function normalizeDateForRequest(value: string): string {
+  const raw = String(value || "").trim()
+  if (!raw) return ""
 
-function getStatus(text: string, resolved: boolean): ResolutionStatus {
-  if (resolved) return "resolved"
-  if (text.trim().length > 0) return "in_progress"
-  return "unresolved"
+  const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (slash) {
+    const day = slash[1].padStart(2, "0")
+    const month = slash[2].padStart(2, "0")
+    const year = slash[3]
+    return `${year}-${month}-${day}`
+  }
+
+  return raw
 }
 
 const statusConfig: Record<ResolutionStatus, { label: string; flagClass: string; badgeClass: string; Icon: React.ElementType }> = {
   unresolved: {
-    label: "Não Resolvido",
+    label: "Nao Resolvido",
     flagClass: "text-red-500",
     badgeClass: "bg-red-500/15 text-red-600 border-red-400/40",
     Icon: Flag,
@@ -47,52 +52,109 @@ const statusConfig: Record<ResolutionStatus, { label: string; flagClass: string;
   },
 }
 
-export function ResolutionCell({ row }: { row: FeedbackRow }) {
-  const [value, setValue] = useState("")
-  const [isResolved, setIsResolved] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [open, setOpen] = useState(false)
+export function ResolutionCell({
+  row,
+  resolution,
+  onSaved,
+}: {
+  row: FeedbackRow
+  resolution?: string
+  onSaved?: () => void
+}) {
+  const statusStorageKey = useMemo(() => {
+    const key = [row.franquia, row.evento, row.nomeCliente, row.dataEvento, row.whatsapp]
+      .map((value) => String(value || "").trim().toLowerCase())
+      .join("|")
+    return `feedback_resolution_status:${key}`
+  }, [row.dataEvento, row.evento, row.franquia, row.nomeCliente, row.whatsapp])
 
-  const storageKey = generateKey(row)
-  const statusKey = `${storageKey}_status`
+  const [value, setValue] = useState(resolution || "")
+  const [savedValue, setSavedValue] = useState(resolution || "")
+  const [status, setStatus] = useState<ResolutionStatus>(
+    resolution && resolution.trim().length > 0 ? "in_progress" : "unresolved"
+  )
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  const { label, flagClass, badgeClass, Icon } = statusConfig[status]
 
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey)
-    const savedStatus = localStorage.getItem(statusKey)
-    setValue(saved || "")
-    setIsResolved(savedStatus === "resolved")
-    setLoading(false)
-  }, [storageKey, statusKey])
+    setValue(resolution || "")
+    setSavedValue(resolution || "")
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value
-    setValue(newValue)
-    localStorage.setItem(storageKey, newValue)
-    // If cleared, reset resolved state
-    if (newValue.trim().length === 0) {
-      setIsResolved(false)
-      localStorage.removeItem(statusKey)
+    const persistedStatus = localStorage.getItem(statusStorageKey) as ResolutionStatus | null
+    if (persistedStatus === "resolved" || persistedStatus === "in_progress" || persistedStatus === "unresolved") {
+      setStatus(persistedStatus)
+      return
+    }
+
+    if (resolution && resolution.trim().length > 0) {
+      setStatus("in_progress")
+    } else {
+      setStatus("unresolved")
+    }
+  }, [resolution, statusStorageKey])
+
+  const persistResolution = async (nextStatus: ResolutionStatus) => {
+    const response = await fetch("/api/feedback-negativos/resolucoes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        franquia: row.franquia,
+        evento: row.evento,
+        nomeCliente: row.nomeCliente,
+          dataEvento: normalizeDateForRequest(row.dataEvento),
+        whatsapp: row.whatsapp,
+        resolucao: value,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error("Falha ao salvar resolucao")
+    }
+
+    setSavedValue(value)
+    setStatus(nextStatus)
+    localStorage.setItem(statusStorageKey, nextStatus)
+    onSaved?.()
+  }
+
+  const handleSave = async (nextStatus: ResolutionStatus) => {
+    try {
+      setSaving(true)
+      await persistResolution(nextStatus)
+      setOpen(false)
+    } catch {
+      // Mantem a UX simples; em caso de erro, o usuario pode tentar novamente.
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleMarkResolved = () => {
-    setIsResolved(true)
-    localStorage.setItem(statusKey, "resolved")
-    setOpen(false)
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && !saving && value !== savedValue) {
+      const draftStatus: ResolutionStatus = value.trim().length > 0 ? "in_progress" : "unresolved"
+      void (async () => {
+        try {
+          await persistResolution(draftStatus)
+        } catch {
+          // Se falhar no autosave, mantemos somente a mudanca local visual.
+        }
+      })()
+    }
+
+    setOpen(nextOpen)
   }
 
   const handleMarkInProgress = () => {
-    setIsResolved(false)
-    localStorage.removeItem(statusKey)
+    setStatus("in_progress")
+    localStorage.setItem(statusStorageKey, "in_progress")
   }
 
-  if (loading) return <div className="h-8 w-24 animate-pulse rounded bg-muted/20" />
-
-  const status = getStatus(value, isResolved)
-  const { label, flagClass, badgeClass, Icon } = statusConfig[status]
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
@@ -111,14 +173,14 @@ export function ResolutionCell({ row }: { row: FeedbackRow }) {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            Resolução do Feedback
+            Resolucao do Feedback
             <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${badgeClass}`}>
               <Icon className="size-3" />
               {label}
             </span>
           </DialogTitle>
           <DialogDescription>
-            {row.nomeCliente} — {row.franquiaNome || row.franquia}
+            {row.nomeCliente} - {row.franquiaNome || row.franquia}
           </DialogDescription>
         </DialogHeader>
 
@@ -126,49 +188,43 @@ export function ResolutionCell({ row }: { row: FeedbackRow }) {
           <Textarea
             placeholder="Descreva detalhadamente como o feedback foi tratado e resolvido..."
             value={value}
-            onChange={handleChange}
+            onChange={(e) => setValue(e.target.value)}
             className="min-h-[180px] resize-none"
           />
 
           <div className="flex items-center justify-between gap-2">
-            {status === "in_progress" && (
-              <p className="text-xs text-muted-foreground">
-                Preencha a resolução e marque como resolvido quando concluir.
-              </p>
-            )}
-            {status === "resolved" && (
-              <p className="text-xs text-green-600">
-                ✓ Este feedback foi marcado como resolvido.
-              </p>
-            )}
-            {status === "unresolved" && (
-              <p className="text-xs text-muted-foreground">
-                Adicione uma descrição para registrar o andamento.
-              </p>
-            )}
-
             <div className="flex shrink-0 gap-2 ml-auto">
               {status === "resolved" && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleMarkInProgress}
+                  disabled={saving}
                   className="text-yellow-600 border-yellow-400/50 hover:bg-yellow-50"
                 >
                   <Clock className="size-3.5 mr-1" />
-                  Reabrir
+                  Em andamento
                 </Button>
               )}
-              {status !== "resolved" && value.trim().length > 0 && (
-                <Button
-                  size="sm"
-                  onClick={handleMarkResolved}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <CheckCircle2 className="size-3.5 mr-1" />
-                  Marcar como Resolvido
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSave("in_progress")}
+                disabled={saving}
+                className="border-yellow-500 bg-yellow-400 text-yellow-950 hover:bg-yellow-500"
+              >
+                {saving ? <LoaderCircle className="size-3.5 mr-1 animate-spin" /> : <Clock className="size-3.5 mr-1" />}
+                Salvar andamento
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleSave("resolved")}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {saving ? <LoaderCircle className="size-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="size-3.5 mr-1" />}
+                Concluido
+              </Button>
             </div>
           </div>
         </div>

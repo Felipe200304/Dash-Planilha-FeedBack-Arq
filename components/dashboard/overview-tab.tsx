@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import useSWR from "swr"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
@@ -84,6 +85,50 @@ type Props = {
   rows: FeedbackRow[]
 }
 
+type ResolutionRow = {
+  franquia: string
+  evento: string
+  nomeCliente: string
+  dataEvento: string
+  whatsapp: string
+  resolucao: string
+}
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
+function normalizeDateForKey(value: string): string {
+  const raw = String(value || "").trim()
+  if (!raw) return ""
+
+  const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (slash) {
+    const day = slash[1].padStart(2, "0")
+    const month = slash[2].padStart(2, "0")
+    const year = slash[3]
+    return `${year}-${month}-${day}`
+  }
+
+  return raw
+}
+
+function resolutionKeyOf(row: {
+  franquia: string
+  evento: string
+  nomeCliente: string
+  dataEvento: string
+  whatsapp: string
+}) {
+  return [
+    row.franquia,
+    row.evento,
+    row.nomeCliente,
+    normalizeDateForKey(row.dataEvento),
+    String(row.whatsapp || "").replace(/\D/g, ""),
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .join("|")
+}
+
 
 function MetricCard({
   icon: Icon,
@@ -119,7 +164,23 @@ function MetricCard({
 export function OverviewTab({ stats, franchiseList, rows = [] }: Props) {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
-  
+
+  const { data: resolutionData, mutate: mutateResolutions } = useSWR<{
+    rows: ResolutionRow[]
+    error: string | null
+  }>("/api/feedback-negativos/resolucoes", fetcher, {
+    refreshInterval: 30000,
+    revalidateOnFocus: true,
+  })
+
+  const resolutionMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const item of resolutionData?.rows ?? []) {
+      map.set(resolutionKeyOf(item), item.resolucao || "")
+    }
+    return map
+  }, [resolutionData])
+
   const negativeRows = rows.filter((r) => r.sentiment === "negative")
 
   // Calculate rates matching the franchise page logic
@@ -360,7 +421,25 @@ export function OverviewTab({ stats, franchiseList, rows = [] }: Props) {
                     <TableCell>{row.nomeCliente}</TableCell>
                     <TableCell>{row.dataEvento}</TableCell>
                     <TableCell className="font-mono text-xs">{formatPhoneNumber(row.whatsapp)}</TableCell>
-                    <TableCell><ResolutionCell row={row} /></TableCell>
+                    <TableCell>
+                      <ResolutionCell
+                        row={row}
+                        resolution={
+                          resolutionMap.get(
+                            resolutionKeyOf({
+                              franquia: row.franquia,
+                              evento: row.evento,
+                              nomeCliente: row.nomeCliente,
+                              dataEvento: row.dataEvento,
+                              whatsapp: row.whatsapp,
+                            })
+                          ) || ""
+                        }
+                        onSaved={() => {
+                          mutateResolutions()
+                        }}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))
               )}
