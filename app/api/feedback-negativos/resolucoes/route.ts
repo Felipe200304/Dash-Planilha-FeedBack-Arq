@@ -3,7 +3,6 @@ import { db } from "@/lib/db"
 
 const SPRING_API_BASE_URL = process.env.SPRING_API_BASE_URL?.trim() || ""
 const SPRING_NEGATIVE_FEEDBACKS_PATH = process.env.SPRING_NEGATIVE_FEEDBACKS_PATH?.trim() || "/feedbacks/negativos"
-const SPRING_API_TOKEN = process.env.SPRING_API_TOKEN?.trim() || ""
 const SPRING_API_REQUIRED = process.env.SPRING_API_REQUIRED === "true"
 
 type ResolutionPayload = {
@@ -50,15 +49,9 @@ function buildSpringResolutionUrl(): string {
 }
 
 function springHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
+  return {
     "Content-Type": "application/json",
   }
-
-  if (SPRING_API_TOKEN) {
-    headers.Authorization = `Bearer ${SPRING_API_TOKEN}`
-  }
-
-  return headers
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -105,14 +98,14 @@ async function readJsonOrText(response: Response): Promise<unknown> {
 
 export async function GET() {
   try {
-    if (SPRING_API_REQUIRED && (!SPRING_API_BASE_URL || !SPRING_API_TOKEN)) {
+    if (SPRING_API_REQUIRED && !SPRING_API_BASE_URL) {
       return NextResponse.json(
         { rows: [], error: "Integracao Spring obrigatoria, mas variaveis de ambiente nao estao completas." },
         { status: 500 }
       )
     }
 
-    if (SPRING_API_BASE_URL && SPRING_API_TOKEN) {
+    if (SPRING_API_BASE_URL) {
       const springResponse = await fetch(buildSpringResolutionsUrl(), {
         method: "GET",
         headers: springHeaders(),
@@ -168,7 +161,7 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as ResolutionPayload
 
-    if (SPRING_API_REQUIRED && (!SPRING_API_BASE_URL || !SPRING_API_TOKEN)) {
+    if (SPRING_API_REQUIRED && !SPRING_API_BASE_URL) {
       return NextResponse.json(
         { row: null, error: "Integracao Spring obrigatoria, mas variaveis de ambiente nao estao completas." },
         { status: 500 }
@@ -182,7 +175,7 @@ export async function POST(request: Request) {
       )
     }
 
-    if (SPRING_API_BASE_URL && SPRING_API_TOKEN) {
+    if (SPRING_API_BASE_URL) {
       const springResponse = await fetch(buildSpringResolutionUrl(), {
         method: "POST",
         headers: springHeaders(),
