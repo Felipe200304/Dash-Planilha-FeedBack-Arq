@@ -41,6 +41,15 @@ function parseBoolean(value: string): boolean {
   return v === "TRUE"
 }
 
+function normalizeHeaderName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/["']/g, "")
+    .trim()
+    .toLowerCase()
+}
+
 export async function GET() {
   try {
     const urls = [
@@ -91,11 +100,11 @@ export async function GET() {
     }
 
     // Parse header row to find column indexes dynamically
-    const headerCols = parseCSVLine(lines[0]).map((h) => h.replace(/"/g, "").trim().toLowerCase())
+    const headerCols = parseCSVLine(lines[0]).map((h) => normalizeHeaderName(h))
 
     const colIndex: Record<string, number> = {}
     const columnAliases: Record<string, string[]> = {
-      franquia: ["franquia", "franchise", "franchisecode"],
+      franquia: ["franquia", "franchise", "franchisecode", "codigo franquia", "cod franquia", "-="],
       evento: ["evento", "event"],
       nomeCliente: ["nome cliente", "nomecliente", "nome", "cliente", "name"],
       dataEvento: ["data evento", "dataevento", "data_evento"],
@@ -113,6 +122,11 @@ export async function GET() {
           break
         }
       }
+    }
+
+    // If the franchise header was renamed to a non-standard token, use the first column as fallback.
+    if (colIndex.franquia === undefined && headerCols.length > 0) {
+      colIndex.franquia = 0
     }
 
     const dataRows = lines.slice(1)
