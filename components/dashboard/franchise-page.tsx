@@ -50,6 +50,7 @@ import {
 import { format, parse, isValid } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import type { FeedbackRow } from "@/lib/franchises"
+import { resolveFranchiseCode } from "@/lib/franchises"
 import { formatPhoneNumber } from "@/lib/utils"
 // force refresh
 import { ResolutionCell } from "@/components/dashboard/resolution-cell"
@@ -121,34 +122,9 @@ export function FranchisePage({ franchiseList, selected, onSelect, rows = [] }: 
   // --- TIME TREND ANALYSIS ---
   // 1. Filter rows for current selection
   const relevantRows = rows.filter((r) => {
-    // Basic check
-    if (!r.franquia) return false
-    
-    // Normalize franchise key logic (must match dashboard.tsx)
-    let franchiseKey = r.franquia
-    
-    // Normalize logic
-    if (franchiseKey === "Joinville") franchiseKey = "JOI"
-    if (franchiseKey === "Mogi") franchiseKey = "MGM"
-    if (franchiseKey === "Sorocaba") franchiseKey = "SOD"
-    if (franchiseKey === "Itu") franchiseKey = "ITU"
-    if (franchiseKey === "Pouso Alegre") franchiseKey = "MPA"
-    if (franchiseKey === "Santos") franchiseKey = "STA"
-    if (franchiseKey === "Uberlândia" || franchiseKey === "Uberlandia") franchiseKey = "UID"
-    if (franchiseKey === "Guarulhos") franchiseKey = "GRU"
-    if (franchiseKey === "São Caetano" || franchiseKey === "Sao Caetano") franchiseKey = "SCT"
-    
-    // Updates: Separate "Lanche" franchises
-    if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCTL" // Separate
-    if (franchiseKey === "Campinas Lanche") franchiseKey = "VCPL"
-
-    if (franchiseKey === "Osasco") franchiseKey = "OSC"
-    if (franchiseKey === "Rio de Janeiro") franchiseKey = "RJB"
-    if (franchiseKey === "Jundiaí" || franchiseKey === "Jundiai") franchiseKey = "JDI"
-    if (franchiseKey === "Limeira") franchiseKey = "QGB"
-    if (franchiseKey === "Ribeirão Preto" || franchiseKey === "Ribeirao Preto") franchiseKey = "RBP"
-    if (franchiseKey === "SJC" || franchiseKey === "São José dos Campos") franchiseKey = "SJC"
-    if (franchiseKey === "Campinas") franchiseKey = "VCP"
+    const franchiseKey = resolveFranchiseCode(r.franquia)
+    if (!franchiseKey) return false
+    if (selected === "all") return true
     return franchiseKey === selected
   })
 
