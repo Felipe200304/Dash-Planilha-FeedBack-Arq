@@ -30,7 +30,7 @@ function parseCSVLine(line: string): string[] {
 
 function parseSentiment(value: string): Sentiment {
   const v = value.toLowerCase().trim()
-  if (v === "positive" || v === "positve" || v === "true" || v === "positivo") return "positive"
+  if (v === "positive" || v === "true" || v === "positivo") return "positive"
   if (v === "negative" || v === "false" || v === "negativo") return "negative"
   if (v === "neutral" || v === "neutro") return "neutral"
   return null
@@ -104,7 +104,7 @@ export async function GET() {
 
     const colIndex: Record<string, number> = {}
     const columnAliases: Record<string, string[]> = {
-      franquia: ["franquia", "franchise", "franchisecode", "codigo franquia", "cod franquia", "-=", "f"],
+      franquia: ["franquia", "franchise", "franchisecode", "codigo franquia", "cod franquia", "-="],
       evento: ["evento", "event"],
       nomeCliente: ["nome cliente", "nomecliente", "nome", "cliente", "name"],
       dataEvento: ["data evento", "dataevento", "data_evento"],
@@ -124,7 +124,7 @@ export async function GET() {
       }
     }
 
-
+    // If the franchise header was renamed to a non-standard token, use the first column as fallback.
     if (colIndex.franquia === undefined && headerCols.length > 0) {
       colIndex.franquia = 0
     }

@@ -4,7 +4,6 @@ import { useState, useMemo } from "react"
 import useSWR from "swr"
 import type { FeedbackRow, Sentiment } from "@/lib/franchises"
 import { FRANCHISE_MAP } from "@/lib/franchises"
-import { resolveFranchiseCode } from "@/lib/franchises"
 import { DashboardHeader } from "./dashboard-header"
 import { OverviewTab } from "./overview-tab"
 import { FranchisePage } from "./franchise-page"
@@ -156,8 +155,28 @@ export function Dashboard() {
     
     
     for (const row of rows) {
-          const fKey = resolveFranchiseCode(row.franquia)
-          if (!fKey) continue
+          if (!row.franquia || !row.franquia.trim()) continue
+          let fKey = row.franquia
+          
+          if (fKey === "Joinville") fKey = "JOI"
+          if (fKey === "Mogi") fKey = "MGM"
+          if (fKey === "Sorocaba") fKey = "SOD"
+          if (fKey === "Itu") fKey = "ITU"
+          if (fKey === "Pouso Alegre") fKey = "MPA"
+          if (fKey === "Santos") fKey = "STA"
+          if (fKey === "Uberlândia" || fKey === "Uberlandia") fKey = "UID"
+          if (fKey === "Guarulhos") fKey = "GRU"
+          if (fKey === "São Caetano" || fKey === "Sao Caetano") fKey = "SCT"
+          if (fKey === "Osasco") fKey = "OSC"
+          if (fKey === "Rio de Janeiro") fKey = "RJB"
+          if (fKey === "Jundiaí" || fKey === "Jundiai") fKey = "JDI"
+          if (fKey === "Limeira") fKey = "QGB"
+          if (fKey === "Ribeirão Preto" || fKey === "Ribeirao Preto") fKey = "RBP"
+          if (fKey === "SJC" || fKey === "São José dos Campos") fKey = "SJC" 
+          
+          if (fKey === "São Paulo Lanche") fKey = "SCTL"
+          if (fKey === "Campinas Lanche") fKey = "VCPL"
+          if (fKey === "Campinas") fKey = "VCP"
 
           if (!map.has(fKey)) {
             map.set(fKey, {
@@ -176,8 +195,32 @@ export function Dashboard() {
 
     
     for (const row of filteredRows) {
-      const franchiseKey = resolveFranchiseCode(row.franquia)
-      if (!franchiseKey) continue
+      if (!row.franquia || !row.franquia.trim()) continue
+      
+      let franchiseKey = row.franquia
+      
+      
+      if (franchiseKey === "Joinville") franchiseKey = "JOI"
+      if (franchiseKey === "Mogi") franchiseKey = "MGM"
+      if (franchiseKey === "Sorocaba") franchiseKey = "SOD"
+      if (franchiseKey === "Itu") franchiseKey = "ITU"
+      if (franchiseKey === "Pouso Alegre") franchiseKey = "MPA"
+      if (franchiseKey === "Santos") franchiseKey = "STA"
+      if (franchiseKey === "Uberlândia" || franchiseKey === "Uberlandia") franchiseKey = "UID"
+      if (franchiseKey === "Guarulhos") franchiseKey = "GRU"
+      if (franchiseKey === "São Caetano" || franchiseKey === "Sao Caetano") franchiseKey = "SCT"
+      if (franchiseKey === "Osasco") franchiseKey = "OSC"
+      if (franchiseKey === "Rio de Janeiro") franchiseKey = "RJB"
+      if (franchiseKey === "Jundiaí" || franchiseKey === "Jundiai") franchiseKey = "JDI"
+      if (franchiseKey === "Limeira") franchiseKey = "QGB"
+      if (franchiseKey === "Ribeirão Preto" || franchiseKey === "Ribeirao Preto") franchiseKey = "RBP"
+      if (franchiseKey === "SJC" || franchiseKey === "São José dos Campos") franchiseKey = "SJC" 
+
+      
+      if (franchiseKey === "São Paulo Lanche") franchiseKey = "SCTL" 
+      if (franchiseKey === "Campinas Lanche") franchiseKey = "VCPL" 
+      
+      if (franchiseKey === "Campinas") franchiseKey = "VCP"
 
       if (!map.has(franchiseKey)) {
         
